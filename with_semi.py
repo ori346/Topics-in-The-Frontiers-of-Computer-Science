@@ -1,16 +1,16 @@
 import numpy as np
-#from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from dpmmpython.dpmmwrapper import DPMMPython
+import json
+from sklearn.semi_supervised import LabelPropagation
 
 dim = 128
-
 pca = PCA(dim)
-#kmeans = KMeans(n_clusters=10, max_iter = 1000)
 rng = np.random.RandomState(42)
+label_prop_model = LabelPropagation()
 
 #using standart mnist
 data = pd.read_csv('mnist_test.csv')
@@ -19,7 +19,6 @@ labels = labels.to_numpy().transpose()
 
 #normlize the data
 data = data.to_numpy()
-data = data / 255
 
 #using 80% of the data as trainig set
 x_train = data[:8000]
@@ -27,14 +26,16 @@ y_train = labels[:8000]
 x_test = data[8000:]
 y_test = labels[8000:]
 
-#using pca to reduce the demntion 
-data_pca = pca.fit_transform(x_train)
-#result = kmeans.fit(data_pca).labels_
 
-result,_,_= DPMMPython.fit(data_pca , 50 ,verbose = True)
+f = open('result.json')
+j = json.load(f) 
+result = j['res']
+
+result = np.array(result)
 
 def relabel_data(labeled):
-    vote = [0] * max(result)
+    #implimting the majority rule 
+    vote = [0] * 10
     tr = []
     for i in range(10): 
         clu = np.where(result == i)[0]
@@ -51,16 +52,24 @@ def relabel_data(labeled):
                 mi = k
                 mv = vote[k]
         labeled[tr] = mi 
-        vote =  [0] * max(result)
+        vote = [0] * 10
         tr = []
     
+    
     return labeled
+
+pca_data = pca.fit_transform(x_train)
 
 def semi_supervised_test(percent): 
     random_unlabeled_points = rng.rand(len(y_train)) < 1 - percent / 100
     labeled = np.copy(y_train)
     labeled[random_unlabeled_points] = -1
+
+    #use the majority rule
     relabeled_result = relabel_data(labeled)
+
+    #use LabelPropagation
+    #relabeled_result = label_prop_model.fit(pca_data, labeled).transduction_ 
 
     model = tf.keras.models.Sequential()
     model.add(tf.keras.layers.Dense(128, activation=tf.nn.relu, input_shape= x_train.shape[1:]))
@@ -72,6 +81,7 @@ def semi_supervised_test(percent):
               metrics=['accuracy'])
     model.fit(x_train, relabeled_result, epochs=3)
     val_loss, val_acc = model.evaluate(x_test, y_test)
+    print(val_acc * 100)
     return val_acc * 100
 
 

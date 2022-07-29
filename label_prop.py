@@ -1,5 +1,4 @@
 import numpy as np
-from sklearn import datasets
 from sklearn.semi_supervised import LabelPropagation
 from sklearn.metrics.cluster import normalized_mutual_info_score
 import pandas as pd
@@ -19,6 +18,7 @@ def semi_supervised_test(percent):
     labels[random_unlabeled_points] = -1
     res = label_prop_model.fit(data, labels).transduction_
     score = normalized_mutual_info_score(res.astype(int), np.array(real),average_method='arithmetic')
+    #print(score * 100) #print the score because we want to know the real value
     return score * 100 
 
 
