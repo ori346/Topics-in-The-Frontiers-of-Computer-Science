@@ -3,9 +3,9 @@ from sklearn.decomposition import PCA
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from dpmmpython.dpmmwrapper import DPMMPython
 import json
 from sklearn.semi_supervised import LabelPropagation
+from sklearn.metrics.cluster import normalized_mutual_info_score
 
 dim = 128
 pca = PCA(dim)
@@ -67,7 +67,7 @@ def semi_supervised_test(percent):
 
     #use the majority rule
     relabeled_result = relabel_data(labeled)
-
+    score = normalized_mutual_info_score(relabeled_result.astype(int), np.array(y_train),average_method='arithmetic')
     #use LabelPropagation
     #relabeled_result = label_prop_model.fit(pca_data, labeled).transduction_ 
 
@@ -81,18 +81,13 @@ def semi_supervised_test(percent):
               metrics=['accuracy'])
     model.fit(x_train, relabeled_result, epochs=3)
     val_loss, val_acc = model.evaluate(x_test, y_test)
+    #using to know the exact value 
     print(val_acc * 100)
-    return val_acc * 100
+    return val_acc * 100 , score * 100
 
 
-if __name__ == '__main__':
-    
-    percents = range(10 , 110 , 10) 
-    results = []
-    for percent in percents: 
-        results.append(semi_supervised_test(percent))
-
-    plt.plot(percents, results)
+def make_graph(x , y):
+    plt.plot(x, y)
   
     # naming the x axis
     plt.xlabel('percent of labeled data')
@@ -104,3 +99,17 @@ if __name__ == '__main__':
   
     # function to show the plot
     plt.show()
+
+if __name__ == '__main__':
+    
+    percents = range(10 , 110 , 10) 
+    fianal_result = []
+    accuracy = []
+    for percent in percents: 
+        res , acc = semi_supervised_test(percent)
+        fianal_result.append(res)
+        accuracy.append(acc)
+    
+    make_graph(percents , fianal_result)
+    make_graph(percents , accuracy)
+    
